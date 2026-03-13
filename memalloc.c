@@ -1,3 +1,9 @@
+#include <unistd.h>
+#include <string.h>
+#include <pthread.h>
+/* Only for the debug printf */
+#include <stdio.h>
+
 typedef char ALIGN[16];
 
 /*
@@ -98,7 +104,51 @@ void free(void *block) {
 	pthread_mutex_unlock(&global_malloc_lock);
 }
 
-int main() {
+void *calloc(size_t num, size_t nsize) {
+    if (!num || !nsize)
+        return NULL;
+    
+    size_t size;
+    void *block;
+    
+    size = num * nsize;
+    if (nsize != size / num)
+        return NULL;
+    
+    block = malloc(size);
+    if (!block)
+        return NULL;
+    memset(block, 0, size);
+    return block;
+}
 
-    return 0;
+void* realloc(void *block, size_t size) {
+    if (!block || !size)
+        return malloc(size);
+
+    header_t *header;
+    void *ret;
+    
+    header = (header_t*)block - 1;
+    if (header->s.size >= size)
+        return block;
+    
+    ret = malloc(size);
+    if (ret) {
+        memcpy(ret, block, header->s.size);
+        free(block);
+    }    
+    return ret;
+}
+
+/* A debug function to print the entire link list */
+void print_mem_list()
+{
+	header_t *curr = head;
+	printf("head = %p, tail = %p \n", (void*)head, (void*)tail);
+	while(curr) {
+		printf("addr = %p, size = %zu, is_free=%u, next=%p\n",
+			(void*)curr, curr->s.size, curr->s.is_free, (void*)curr->s.next);
+		curr = curr->s.next;
+	}
 }
