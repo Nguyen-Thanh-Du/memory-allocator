@@ -80,8 +80,8 @@ void free(void *block) {
     header_t *header, *tmp;
 	void *programbreak;
 
-    if (!block)
-        return;
+    if (!block) return;
+
     pthread_mutex_lock(&global_malloc_lock);
     header = (header_t*)(block) - 1;
     programbreak = sbrk(0);
@@ -109,8 +109,20 @@ void free(void *block) {
     }
 
     header->s.is_free = 1;
+    coalesce(header);
+
 	pthread_mutex_unlock(&global_malloc_lock);
 }
+
+void coalesce(header_t *header) {
+    if (!header) return;
+
+    header_t *tmp = header->s.next;
+    if (tmp->s.is_free == 1) {
+        header->s.size += sizeof(header_t) + tmp->s.size;
+        header->s.next = tmp->s.next;
+    }
+ }
 
 void *calloc(size_t num, size_t nsize) {
     if (!num || !nsize)
