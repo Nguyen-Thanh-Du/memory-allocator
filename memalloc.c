@@ -3,6 +3,7 @@
 #include <pthread.h>
 /* Only for the debug printf */
 #include <stdio.h>
+#include <stdbool.h> 
 
 typedef char ALIGN[16];
 
@@ -18,7 +19,7 @@ union header {
         header *next;
     } s;
     ALIGN stub; 
-}
+};
 
 typedef union header header_t;
 
@@ -33,9 +34,12 @@ void *malloc(size_t size) {
 
     if (!size)
         return NULL;
+        
     pthread_mutex_lock(&global_malloc_lock);
     header = get_free_block(size);
     if (header) {
+        split_block(header, size);
+
         header->s.is_free = 0;
         pthread_mutex_unlock(&global_malloc_lock);
         return (void*)(header + 1);
@@ -63,7 +67,9 @@ void *malloc(size_t size) {
 header_t *get_free_block(size_t size) {
     header_t *curr = head;
     while (curr) {
-        if (curr->s.size >= size && curr->s.is_free == 1)
+        if (curr->s.size >= size && curr->s.is_free == 1) {
+            if 
+        }
             return curr;
         curr = curr->s.next;
     }
@@ -79,12 +85,14 @@ void free(void *block) {
     pthread_mutex_lock(&global_malloc_lock);
     header = (header_t*)(block) - 1;
     programbreak = sbrk(0);
-    if (programbreak == (void*) - 1)
+    if (programbreak == (void*) - 1){
+        pthread_mutex_unlock(&global_malloc_lock);
         return;
+    }
 
-    if ((char*)block + header->s.size() == programmbreak) {
+    if ((char*)block + header->s.size == programbreak) {
         if (head == tail) {
-            head = tail == NULL;
+            head = tail = NULL;
         } else {
             tmp = head;
             while (tmp) {
@@ -140,6 +148,31 @@ void* realloc(void *block, size_t size) {
     }    
     return ret;
 }
+
+void split_block(header_t *block, size_t size) {
+    // Is there enough room to carve out a new header + at least 16 bytes?
+    if (block->s.size < size + sizeof(header_t) + 16)
+        return;  
+
+    // Step 1: calculate where the new header will live
+    header_t *new_block = (header *)((char*)(block + 1) + size)     // It starts right after the current header + the requested data
+
+    // Step 2: fill in the new block's metadata
+    new_block->s.size = block->s.size - size - sizeof(header_t);
+    new_block->s.is_free = 1;
+    new_block->s.next    = block->s.next;  // inherit the old block's next pointer
+
+
+    // Step 3: update the original block
+    block->s.size = size; 
+    block->s.next = new_block;
+
+
+    // Step 4: update tail if needed
+    if (tail == block)
+        tail = new_block;
+}
+
 
 /* A debug function to print the entire link list */
 void print_mem_list()
