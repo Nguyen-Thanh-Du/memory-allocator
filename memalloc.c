@@ -16,7 +16,7 @@ union header {
     struct {
         size_t size;
         bool is_free;
-        header *next;
+        header_t *next;
     } s;
     ALIGN stub; 
 };
@@ -68,9 +68,8 @@ header_t *get_free_block(size_t size) {
     header_t *curr = head;
     while (curr) {
         if (curr->s.size >= size && curr->s.is_free == 1) {
-            if 
-        }
             return curr;
+        }
         curr = curr->s.next;
     }
     return NULL;
@@ -164,31 +163,22 @@ void* realloc(void *block, size_t size) {
 }
 
 void split_block(header_t *block, size_t size) {
-    // Is there enough room to carve out a new header + at least 16 bytes?
     if (block->s.size < size + sizeof(header_t) + 16)
         return;  
 
-    // Step 1: calculate where the new header will live
-    header_t *new_block = (header *)((char*)(block + 1) + size)     // It starts right after the current header + the requested data
+    header_t *new_block = (header_t *)((char*)(block + 1) + size);
 
-    // Step 2: fill in the new block's metadata
     new_block->s.size = block->s.size - size - sizeof(header_t);
     new_block->s.is_free = 1;
-    new_block->s.next    = block->s.next;  // inherit the old block's next pointer
+    new_block->s.next    = block->s.next;  
 
-
-    // Step 3: update the original block
     block->s.size = size; 
     block->s.next = new_block;
 
-
-    // Step 4: update tail if needed
     if (tail == block)
         tail = new_block;
 }
 
-
-/* A debug function to print the entire link list */
 void print_mem_list()
 {
 	header_t *curr = head;
