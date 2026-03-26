@@ -7,11 +7,6 @@
 
 typedef char ALIGN[16];
 
-/*
-    size: To keep track of that memory block's size - used for free()
-    is_free: Differentiate free vs. release-able blocks;
-    stub: To align the header to 16-byte
-*/
 union header {
     struct {
         size_t size;
